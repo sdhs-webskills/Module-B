@@ -75,10 +75,10 @@ const removeHistoryTab = year => { // 탭 삭제
 	const $historyTab = [...document.querySelectorAll(".history-tab")]
 							.filter(({ textContent }) => textContent === year)[0];
 
-	$historyTabs.removeChild($historyTab);
+	if($historyTab)	$historyTabs.removeChild($historyTab);
 
 	if(localStorage.getItem("year") === year)
-		localStorage.setItem("year", $historyTabs.children[0].textContent);
+		localStorage.setItem("year", $historyTabs.children[0] !== undefined ? $historyTabs.children[0].textContent : "");
 
 	localStorageRender();
 	tabRender();
@@ -101,7 +101,7 @@ const tabRender = () => { // 정렬한 탭 렌더
 			localStorage.removeItem(year);
 			removeHistoryTab(year);
 
-			localStorage.setItem("year", $historyTabs.children[0].textContent);
+			localStorage.setItem("year", $historyTabs.children[0] !== undefined ? $historyTabs.children[0].textContent : "");
 		};
 	}
 
@@ -238,7 +238,9 @@ const openPopup = (...arguments) => { // 수정 팝업 생성
 		historySelect(year).children[1].innerHTML = "";
 
 		tabRender();
-		return historyGenerator(year);
+		historyGenerator(year);
+		localStorageRender();
+		return historySelect(year);
 	});
 };
 
@@ -278,13 +280,28 @@ $close.addEventListener("click", ({ target }) => popupReset());
 
 const $historyBox = document.querySelector("#history-box");
 $historyBox.addEventListener("click", ({ target }) => {
-	if(!target.classList.contains("edit")) return false;
+	if(target.classList.contains("edit")) {
+		const parent = target?.parentNode?.parentNode;
+		const content = parent.children[1].innerHTML;
+		const date = parent.children[0].innerHTML;
+		const index = [...parent.parentNode.children].findIndex(element => element === parent);
 
-	const parent = target?.parentNode?.parentNode;
+		return openPopup(content, date, index);
+	};
 
-	const content = parent.children[1].innerHTML;
-	const date = parent.children[0].innerHTML;
-	const index = [...parent.parentNode.children].findIndex(element => element === parent);
+	if(target.classList.contains("delete")) {
+		const parent = target?.parentNode?.parentNode?.parentNode;
+		const index = [...parent.parentNode.children].findIndex(element => element === parent);	
 
-	openPopup(content, date, index);
+		const year = localStorage.getItem("year");
+		const items = JSON.parse(localStorage.getItem(year)).filter((item, idx) => idx !== index - 1);
+
+		localStorage.setItem(year, JSON.stringify([...items]));
+		localStorageRender();
+
+		if(items.length === 0) {
+			removeHistoryTab(year);
+			parent.parentNode.parentNode.removeChild(parent.parentNode);
+		};
+	};
 });
