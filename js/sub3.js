@@ -88,7 +88,7 @@ const removeHistoryTab = year => { // 탭 삭제
 const tabAlign = nodeList => [...nodeList].sort((a, b) => a.innerHTML > b.innerHTML ? -1 : 1);
 const tabRender = () => { // 정렬한 탭 렌더
 	historyTabGenerator();
-	
+
 	const alignedTabs = tabAlign(document.querySelectorAll(".history-tab"));
 
 	for(let i = 0, limit = alignedTabs.length; i < limit; i++) {
@@ -231,9 +231,15 @@ const openPopup = (...arguments) => { // 수정 팝업 생성
 
 			const oldItems = JSON.parse(localStorage.getItem(oldYear)).filter((item, idx) => idx !== index);
 			localStorage.setItem(oldYear, JSON.stringify([...oldItems]));
+
+			localStorage.setItem(year, JSON.stringify([...items, {date: $date.value, content: $historyContent.value}]));
+
+			return localStorageRender();
 		};
 
-		localStorage.setItem(year, JSON.stringify([...items, {date: $date.value, content: $historyContent.value}]));
+		items[index] = {date: $date.value, content: $historyContent.value};
+
+		localStorage.setItem(year, JSON.stringify([...items]));
 
 		historySelect(year).children[1].innerHTML = "";
 
