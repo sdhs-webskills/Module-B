@@ -1,313 +1,181 @@
 const $historyTabs = document.querySelector("#history-tabs");
+const $historyBox = document.querySelector("#history-box");
 
-const historySelect = year => {
-	// 년도를 받아서 선택후 리턴 / 해당하는 탭이 없을경우 생성 후 리턴
-	const length = document.querySelectorAll(".history-box").length;
-	const $history = document.querySelector(`.history-box[data-year='${year}']`);
+const resetHistoryTabs = () => $historyTabs.innerHTML = "";
+const resetHistoryBox = () => $historyBox.innerHTML = "";
 
-	if(!$history) {
-		if(!localStorage.getItem("year")) localStorage.setItem("year", year);
+const getYear = () => localStorage.getItem("year") ?? "";
+const setYear = year => localStorage.setItem("year", year);
+const getItem = year => localStorage.getItem(year) ? JSON.parse(localStorage.getItem(year)) : [];
+const setItem = (year, newItem, flag = true) => localStorage.setItem(year, JSON.stringify(flag ? [...getItem(year), ...newItem] : [...newItem]));
+const getYearKeys = () => Object.keys(localStorage).filter(name => name !== "year");
+const removeItem = name => localStorage.removeItem(name);
 
-		$historyTabs.insertAdjacentHTML("beforeend", `
-			<li class='history-tab ${length === 0 ? "active-history-tab" : localStorage.getItem("year") === year ? "active-history-tab" : ""}'>${year}</li>
-			`);
+const append = (target, position, html) => target.insertAdjacentHTML(position, html);
 
-		document.querySelector("#history-box").insertAdjacentHTML("beforeend", `
-			<div class='history-box' data-year='${year}' style="display: flex;">
-			<h1>${year}</h1>
-			<div></div>
-			<div></div>
-			</div>
-			`);
+const historyTab = year => `<li class='history-tab ${getYear() === year ? "active-history-tab" : ""}'>${year}</li>`;
+const historyTabSelect = year => [...document.querySelectorAll(`.history-tab`)].filter(tab => tab.textContent === year)[0];
+const historyTabGenerator = year => append($historyTabs, "beforeend", historyTab(year));
+const removeHistoryTab = year => historyTabSelect(year) ? $historyTabs.removeChild(historyTabSelect(year)) : false;
 
-		const $historyTab = [...document.querySelectorAll(".history-tab")]
-							.filter(({ textContent }) => textContent === localStorage.getItem("year"))[0];
+const historyBox = year => `<div class='history-box' data-year='${year}' style="display: none;"><h1>${year}</h1><div></div><div></div></div>`;
+const historyBoxSelect = year => document.querySelector(`.history-box[data-year='${year}']`);
+const historyBoxGenerator = year => append($historyBox, "beforeend", historyBox(year));
+const removeHistoryBox = year => historyBoxSelect(year) ? $historyBox.removeChild(historyBoxSelect(year)) : false;
 
-		$historyTab?.classList.add("active-history-tab");
+const historyItem = (date, content) => `<div class="history"><li>${date}</li><li>${content}</li><div><button class="edit">수정</button><button class="delete">삭제</button></div></div>`;
+const historyItemGenerator = (year, date, content) => append(historyBoxSelect(year).children[1], "beforeend", historyItem(date, content));
 
-		return document.querySelector(`.history-box[data-year='${year}']`);
-	};
+const historyRender = year => historyBoxSelect(year ?? getYear()) ? historyBoxSelect(year ?? getYear()).style.display = "flex" : "";
+const historyDisplayNone = () => [...$historyBox.children].forEach(element => element.style.display = "none");
 
-	return $history;
-};
+const cleanLocalStorage = () => Object.keys(localStorage).forEach(key => {if(getItem(key) === "" || getItem(key).length === 0) removeItem(key);});
 
-const historyItem = (date, content) => { // 연혁 아이템
-	return `<div class="history">
-				<li>${date}</li>
-				<li>${content}</li>
-				<div>
-					<button class="edit">수정</button>
-					<button class="delete">삭제</button>
-				</div>
-			</div>`;
-};
+const render = () => {
+	cleanLocalStorage();
 
-const historyRender = index => { // 클릭한 년도별 연혁 박스 디스플레이
-	const year = localStorage.getItem("year") ?? index;
-	const items = JSON.parse(localStorage.getItem(index ?? year)) ?? [];
+	getYearKeys().forEach(year => {
+		if(year !== "") {
+			historyTabGenerator(year);
+			historyBoxGenerator(year);
 
-	const $histories = document.querySelectorAll(".history-box");
-	$histories.forEach(history => history.style.display = "none");
-
-	const $history = document.querySelector(`.history-box[data-year='${year}']`) ?? $histories[0];
-	if($history) $history.style.display = "flex";
-};
-historyRender();
-
-const historyGenerator = year => { // 연혁 생성
-	historySelect(year).children[1].innerHTML = "";
-
-	const items = JSON.parse(localStorage.getItem(year));
-
-	items.forEach(item => {
-		historySelect(year)
-		.children[1]
-		.insertAdjacentHTML("beforeend", historyItem(item["date"], item["content"]));
-	});
-};
-
-const historyTabGenerator = () => { // 탭 생성
-	const years = Object.keys(localStorage).filter(name => name !== "year");
-	years.forEach(year => historySelect(year));
-};
-
-const removeHistoryTab = year => { // 탭 삭제
-	const $historyTab = [...document.querySelectorAll(".history-tab")]
-							.filter(({ textContent }) => textContent === year)[0];
-
-	if($historyTab)	$historyTabs.removeChild($historyTab);
-
-	if(localStorage.getItem("year") === year)
-		localStorage.setItem("year", $historyTabs.children[0] !== undefined ? $historyTabs.children[0].textContent : "");
-
-	localStorageRender();
-	tabRender();
-};
-
-// 탭 정렬
-const tabAlign = nodeList => [...nodeList].sort((a, b) => a.innerHTML > b.innerHTML ? -1 : 1);
-const tabRender = () => { // 정렬한 탭 렌더
-	historyTabGenerator();
-
-	const alignedTabs = tabAlign(document.querySelectorAll(".history-tab"));
-
-	for(let i = 0, limit = alignedTabs.length; i < limit; i++) {
-		const tab = alignedTabs[i];
-		const year = tab.textContent;
-
-		$historyTabs.insertAdjacentElement("beforeend", tab);
-
-		if(JSON.parse(localStorage.getItem(year)).length === 0) {
-			localStorage.removeItem(year);
-			removeHistoryTab(year);
-
-			localStorage.setItem("year", $historyTabs.children[0] !== undefined ? $historyTabs.children[0].textContent : "");
+			getItem(year).forEach(item => {
+				const date = item["date"].substring(5).replace("-",".");
+				historyItemGenerator(year, date, item["content"]);
+			});
 		};
-	}
-
-	const $historyTab = [...document.querySelectorAll(".history-tab")]
-							.filter(({ textContent }) => textContent === localStorage.getItem("year"))[0];
-
-	$historyTab?.classList.add("active-history-tab");
-};
-
-const localStorageRender = () => { // 년도별로 연혁 렌더
-	tabRender();
-
-	const year = localStorage.getItem("year");
-	const $historyTab = [...document.querySelectorAll(".history-box > h1")]
-							.filter(({ textContent }) => textContent === year)[0];
-
-	const years = Object.keys(localStorage).filter(name => name !== "year");
-
-	years.forEach(year => {
-		historySelect(year).children[1].innerHTML = "";
 	});
 
-	years.forEach(year => {
-		const $history = historySelect(year);
-
-		const items = JSON.parse(localStorage.getItem(year)) ?? [];
-		items.forEach(item => {
-			$history.children[1].insertAdjacentHTML("beforeend", historyItem(item["date"], item["content"]));
-		});
-	});
-
-	historyRender();
+	historyDisplayNone();
+	if(!historyTabSelect(getYear())) {
+		setYear($historyTabs.children[0]?.textContent ?? "");
+		historyRender($historyTabs.children[0]?.textContent);
+	};
+	if(historyBoxSelect(getYear())) historyRender();
 };
-localStorageRender();
+render();
 
-[...$historyTabs.children].forEach(tab => { // 로컬스토리지에 저장된 년도를 액티브
-	tab.classList.remove("active-history-tab");
-
-	const year = localStorage.getItem("year") ?? $historyTabs.children[0].textContent;
-
-	if(tab.textContent === year)
-		tab.classList.add("active-history-tab");
-});
+const reset = () => {
+	cleanLocalStorage();
+	resetHistoryTabs();
+	resetHistoryBox();
+	render();
+};
 
 $historyTabs.addEventListener("mouseup", ({ target }) => {
-	[...$historyTabs.children].forEach(tab => {
-		tab.classList.remove("active-history-tab");
-	});
+	[...$historyTabs.children].forEach(tab => tab.classList.remove("active-history-tab"));
 
 	target.classList.add("active-history-tab");
 
-	localStorage.setItem("year", target.textContent);
+	setYear(target.textContent);
 
-	historyRender(target.textContent);
-});
-
-const $popupBox = document.querySelector("#popup-box");
-const $addHistory = document.querySelector("#add-history");
-$addHistory.addEventListener("click", () => {
-	$popupBox.style.display = "block";
-});
-
-const popupReset = () => { // 팝업 초기화
-	[...document.querySelectorAll(".popup-group")]
-		.forEach(({ children }) => children[1].value = "");
-
-	$popupBox.style.display = "none";
-};
-
-const openPopup = (...arguments) => { // 수정 팝업 생성
-	const [ content, date, index ] = arguments;
-	const oldYear = date.substring(0, 4);
-
-	document.body.insertAdjacentHTML("beforeend", `
-	<div id="clone-popup-box" style="display: block;">
-		<div id="clone-popup">
-			<div>
-				<div class="popup-group">
-					<label for="history-content">연혁 내용 : &nbsp;</label>
-					<input type="text" id="clone-history-content" name="연혁 내용" value="${arguments[0]}">
-				</div>
-				<div class="popup-group">
-					<label for="date">연혁 일자 : &nbsp;</label>
-					<input type="date" id="clone-date" name="연혁 일자" value="${arguments[1]}">
-				</div>
-			</div>
-			<div id="clone-button-box">
-				<button id="clone-close">닫기</button>
-				<button id="clone-save">저장</button>
-			</div>
-		</div>
-		<div id="clone-blind"></div>
-	</div>
-	`);
-
-	const $clonePopup = document.querySelector("#clone-popup-box");
-
-	const $close = document.querySelector("#clone-close");
-	$close.addEventListener("click", ({ target }) => document.body.removeChild($clonePopup));
-
-	const $save = document.querySelector("#clone-save");
-	$save.addEventListener("click", ({ target }) => {
-		const $historyContent = document.querySelector("#clone-history-content");
-		const $date = document.querySelector("#clone-date");
-
-		if($historyContent.value === "") {
-			alert("연혁 내용칸이 비었습니다");
-
-			return $historyContent.focus();
-		};
-
-		if($date.value === "") {
-			alert("연혁 날짜칸이 비었습니다");
-
-			return $date.focus();
-		};
-
-		const year = $date.value.substring(0, 4);
-		const items = JSON.parse(localStorage.getItem(year)) ?? [];
-
-		document.body.removeChild($clonePopup);
-
-		if(oldYear !== year) {
-			const parent = target?.parentNode?.parentNode;
-
-			parent.parentNode.removeChild(parent);
-
-			const oldItems = JSON.parse(localStorage.getItem(oldYear)).filter((item, idx) => idx !== index);
-			localStorage.setItem(oldYear, JSON.stringify([...oldItems]));
-
-			localStorage.setItem(year, JSON.stringify([...items, {date: $date.value, content: $historyContent.value}]));
-
-			return localStorageRender();
-		};
-
-		items[index] = {date: $date.value, content: $historyContent.value};
-
-		localStorage.setItem(year, JSON.stringify([...items]));
-
-		historySelect(year).children[1].innerHTML = "";
-
-		tabRender();
-		historyGenerator(year);
-		localStorageRender();
-		return historySelect(year);
-	});
-};
-
-const $save = document.querySelector("#save");
-$save.addEventListener("click", () => {
-	const $historyContent = document.querySelector("#history-content");
-	const $date = document.querySelector("#date");
-
-	if($historyContent.value === "") {
-		alert("연혁 내용칸이 비었습니다");
-
-		return $historyContent.focus();
-	};
-
-	if($date.value === "") {
-		alert("연혁 날짜칸이 비었습니다");
-
-		return $date.focus();
-	};
-
-	const year = $date.value.substring(0, 4);
-	const items = JSON.parse(localStorage.getItem(year)) ?? [];
-
-	localStorage.setItem(year, JSON.stringify([...items, {date: $date.value, content: $historyContent.value}]));
-
-	historySelect(year)
-	.children[1]
-	.insertAdjacentHTML("beforeend", historyItem($date.value, $historyContent.value));
-
-	popupReset();
+	historyDisplayNone();
 	historyRender();
-	tabRender();
 });
 
-const $close = document.querySelector("#close");
-$close.addEventListener("click", ({ target }) => popupReset());
+const $addHistory = document.querySelector("#add-history");
+$addHistory.addEventListener("click", () => document.forms["insert"].style.display = "block");
 
-const $historyBox = document.querySelector("#history-box");
-$historyBox.addEventListener("click", ({ target }) => {
+document.addEventListener("click", event => {
+	const { target } = event;
+
+	if(target.classList.contains("close")) {
+		event.preventDefault();
+
+		target.parentNode.parentNode.reset();
+		target.parentNode.parentNode.style.display = "none";
+	};
+
 	if(target.classList.contains("edit")) {
 		const parent = target?.parentNode?.parentNode;
-		const content = parent.children[1].innerHTML;
-		const date = parent.children[0].innerHTML;
 		const index = [...parent.parentNode.children].findIndex(element => element === parent);
+		const { content, date } = getItem(getYear())[index];
 
-		return openPopup(content, date, index);
+		const form = document.forms["modify"];
+		form["modify-content"].value = content;
+		form["modify-date"].value = date;
+		form.dataset.old = date;
+		form.dataset.index = index;
+		return form.style.display = "block";
 	};
 
 	if(target.classList.contains("delete")) {
 		const parent = target?.parentNode?.parentNode?.parentNode;
 		const index = [...parent.parentNode.children].findIndex(element => element === parent);	
 
-		const year = localStorage.getItem("year");
-		const items = JSON.parse(localStorage.getItem(year)).filter((item, idx) => idx !== index - 1);
+		const year = getYear();
+		const items = getItem(year).filter((item, idx) => idx !== index - 1);
 
-		localStorage.setItem(year, JSON.stringify([...items]));
-		localStorageRender();
+		setItem(year, items, false);
+		reset();
 
 		if(items.length === 0) {
 			removeHistoryTab(year);
-			parent.parentNode.parentNode.removeChild(parent.parentNode);
+			removeHistoryBox(year);
 		};
+	};
+});
+document.addEventListener("submit", event => {
+	event.preventDefault();
+
+	const form = event.target;
+
+	if(form.id === "insert") {
+		const $content = form["insert-content"].value;
+		const $date = form["date"].value;
+		const year = $date.substring(0, 4);
+		const items = getItem(year);
+
+		const date = $date.substring(5).replace("-",".");
+
+		setItem(date, [{date: $date, content: $content}]);
+		
+		if(getYear() === "") setYear(year);
+
+		if(!historyBoxSelect(year)) {
+			historyTabGenerator(year);
+			historyBoxGenerator(year);
+		};
+
+		append(historyBoxSelect(year).children[1], "beforeend", historyItem(date, $content));
+
+		form.reset();
+		form.style.display = "none";
+
+		return reset();
+	};
+
+	if(form.id === "modify") {
+		const $content = form["modify-content"].value;
+		const $date = form["modify-date"];
+		const index = form.dataset.index;
+
+		const year = $date.value;
+		const items = getItem(year);
+		const oldYear = form.dataset.old;
+
+		if(oldYear !== year) {
+			const oldItems = getItem(oldYear).slice(index, 1);
+			
+			localStorage.setItem(oldYear, JSON.stringify(...oldItems));
+
+			setItem(year.substring(0, 4), [{date: year, content: $content}]);
+
+			form.style.display = "none";
+			form.reset();
+
+			return reset();
+		};
+
+		$date.dataset.old = $date.value;
+
+		items[index] = {date: $date.value, content: $content};
+
+		setItem(year.substring(0, 4), items, false);
+
+		form.style.display = "none";
+		form.reset();
+
+		return reset();
 	};
 });
